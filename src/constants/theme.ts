@@ -11,16 +11,20 @@ export const Colors = {
   light: {
     text: '#000000',
     background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    backgroundElement: '#F5F5F5',
+    backgroundSelected: '#EFEFEF',
+    textSecondary: '#4B4B4B',
+    primary: '#FFCC00',
+    muted: '#DEDEDE',
   },
   dark: {
     text: '#ffffff',
     background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    backgroundElement: '#1A1A1A',
+    backgroundSelected: '#2A2A2A',
+    textSecondary: '#C7C7C7',
+    primary: '#FFCC00',
+    muted: '#2A2A2A',
   },
 } as const;
 
@@ -28,28 +32,33 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
+    sans: 'FiraSans_500Medium',
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
+    rounded: 'Inter_500Medium',
     mono: 'ui-monospace',
   },
   default: {
-    sans: 'normal',
+    sans: 'FiraSans_500Medium',
     serif: 'serif',
-    rounded: 'normal',
+    rounded: 'Inter_500Medium',
     mono: 'monospace',
   },
   web: {
-    sans: 'var(--font-display)',
+    sans: 'Fira Sans, Inter, ui-sans-serif, system-ui, sans-serif',
     serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
+    rounded: 'Inter, ui-sans-serif, system-ui, sans-serif',
     mono: 'var(--font-mono)',
   },
 });
+
+export const FontFamilies = {
+  primaryRegular: 'FiraSans_400Regular',
+  primaryMedium: 'FiraSans_500Medium',
+  primarySemiBold: 'FiraSans_600SemiBold',
+  secondaryRegular: 'Inter_400Regular',
+  secondaryMedium: 'Inter_500Medium',
+  secondarySemiBold: 'Inter_600SemiBold',
+} as const;
 
 export const Spacing = {
   half: 2,

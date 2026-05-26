@@ -1,98 +1,192 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
+import { useRouter } from 'expo-router';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
+import type { Restaurant } from '@/api/types';
+import { RestaurantCard } from '@/components/restaurant-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { StateView } from '@/components/ui/state-view';
+import { Spacing } from '@/constants/theme';
+import { useRestaurants } from '@/hooks/use-restaurants';
+import { useTheme } from '@/hooks/use-theme';
+import { useLocationStore } from '@/store/use-location-store';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+export default function RestaurantsScreen() {
+  const router = useRouter();
+  const theme = useTheme();
+  const selectedAddress = useLocationStore((s) => s.selected.address);
+
+  const query = useRestaurants({ limit: 5 });
+  const restaurants = useMemo(() => {
+    const all = query.data?.pages.flatMap((p) => p.restaurants) ?? [];
+    const seen = new Set<number>();
+    const result: Restaurant[] = [];
+    for (const r of all) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      result.push(r);
+    }
+    return result;
+  }, [query.data?.pages]);
+
+  if (query.isError) {
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <StateView
+            title="Something went wrong"
+            description="Could not load restaurants. Please try again."
+            actionLabel="Retry"
+            onActionPress={() => query.refetch()}
+          />
+        </SafeAreaView>
+      </ThemedView>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
 
-export default function HomeScreen() {
+  if (query.isLoading) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <ThemedText type="subtitle">Restaurants</ThemedText>
+            <Pressable
+              onPress={() => router.push('/explore')}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedView type="primary" style={styles.locationPill}>
+                <ThemedText type="smallBold" style={styles.locationText}>
+                  Location
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          </View>
+          <View style={styles.skeletonList}>
+            {[0, 1, 2].map((k) => (
+              <View key={k} style={[styles.skeletonCard, { backgroundColor: theme.backgroundElement }]} />
+            ))}
+          </View>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+
+  if (!restaurants.length) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <StateView
+            title="No restaurants"
+            description="Try changing your delivery location."
+            actionLabel="Pick location"
+            onActionPress={() => router.push('/explore')}
+          />
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <View style={styles.header}>
+          <View style={styles.titleBlock}>
+            <ThemedText type="subtitle">Restaurants</ThemedText>
+            {selectedAddress ? (
+              <ThemedText themeColor="textSecondary" type="small" numberOfLines={1}>
+                {selectedAddress}
+              </ThemedText>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => router.push('/explore')}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <ThemedView type="primary" style={styles.locationPill}>
+              <ThemedText type="smallBold" style={styles.locationText}>
+                Location
+              </ThemedText>
+            </ThemedView>
+          </Pressable>
+        </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+        <FlashList
+          data={restaurants}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <RestaurantCard
+              restaurant={item}
+              onPress={() => router.push({ pathname: '/restaurants/[id]', params: { id: String(item.id) } })}
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          onEndReachedThreshold={0.6}
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
+          }}
+          refreshControl={
+            <RefreshControl
+              tintColor={theme.text}
+              refreshing={query.isRefetching && !query.isFetchingNextPage}
+              onRefresh={() => query.refetch()}
+            />
+          }
+          ListFooterComponent={
+            query.isFetchingNextPage ? (
+              <View style={[styles.footerLoader, { backgroundColor: theme.backgroundElement }]} />
+            ) : null
+          }
+        />
       </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  pressed: { opacity: 0.8 },
+  header: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
     flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    justifyContent: 'space-between',
+    gap: Spacing.two,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  titleBlock: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.half,
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
+  locationPill: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.five,
+  },
+  locationText: {
+    color: '#000000',
+  },
+  listContent: {
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.four,
+    gap: Spacing.three,
+  },
+  skeletonList: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+  },
+  skeletonCard: {
+    height: 240,
     borderRadius: Spacing.four,
+    opacity: 0.6,
+  },
+  footerLoader: {
+    height: 80,
+    borderRadius: Spacing.four,
+    marginHorizontal: Spacing.four,
+    marginBottom: Spacing.four,
+    opacity: 0.5,
   },
 });
