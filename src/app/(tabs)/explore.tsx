@@ -92,7 +92,10 @@ export default function LocationScreen() {
   const [isResolving, setIsResolving] = useState(false);
   const lastResolvedRef = useRef<LatLng | null>(null);
 
-  const html = useMemo(() => buildLeafletHtml(selected.coords), [selected.coords.latitude, selected.coords.longitude]);
+  const html = useMemo(
+    () => buildLeafletHtml(selected.coords),
+    [selected.coords.latitude, selected.coords.longitude]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +107,8 @@ export default function LocationScreen() {
           return;
         }
         const status = await Location.getForegroundPermissionsAsync();
-        if (!cancelled) setPermission(status.granted ? 'granted' : status.canAskAgain ? 'denied' : 'unavailable');
+        if (!cancelled)
+          setPermission(status.granted ? 'granted' : status.canAskAgain ? 'denied' : 'unavailable');
       } catch {
         if (!cancelled) setPermission('unavailable');
       }
@@ -226,7 +230,9 @@ export default function LocationScreen() {
             <ThemedText themeColor="textSecondary" type="small">
               Enable location permission to quickly center the map to your current position.
             </ThemedText>
-            <Pressable onPress={() => Linking.openSettings()} style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable
+              onPress={() => Linking.openSettings()}
+              style={({ pressed }) => pressed && styles.pressed}>
               <ThemedView type="primary" style={styles.primaryBtn}>
                 <ThemedText type="smallBold" style={styles.primaryText}>
                   Open settings
@@ -247,9 +253,7 @@ export default function LocationScreen() {
             {address ?? 'Move the map to pick a delivery location.'}
           </ThemedText>
 
-          <Pressable
-            onPress={() => setSelected(center, address)}
-            style={({ pressed }) => pressed && styles.pressed}>
+          <Pressable onPress={() => setSelected(center, address)} style={({ pressed }) => pressed && styles.pressed}>
             <ThemedView type="primary" style={styles.saveBtn}>
               <ThemedText type="smallBold" style={styles.primaryText}>
                 Save address
@@ -335,3 +339,4 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 });
+
